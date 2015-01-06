@@ -68,7 +68,7 @@ class DataFetcher(object):
 
         if os.path.isdir(self.folder): 
             if fetcher['branch']:
-                os.system('cd "%s" && git checkout "%s"' % (self.folder, fetcher['branch']))
+                os.system('cd "%s" && git checkout -b "%s" "%s"' % (self.folder, os.path.basename(fetcher['branch']), fetcher['branch']))
             if fetcher['commit']:
                 os.system('cd "%s" && git checkout "%s"' % (self.folder, fetcher['commit']))
 
@@ -121,14 +121,14 @@ class DataFetcher(object):
         print ('*** Fetching %s' % (self.name))
 
         fetcher = self.parse_method()
-        if fetcher['backend'] == 'git':
+        if fetcher['backend'] == 'git' or fetcher['backend'] == '':
             self.fetch_git(fetcher, self.source)
         elif fetcher['backend'] == 'get':
             self.fetch_get(fetcher, self.source)
         elif fetcher['commands']:
             self.fetch_commands(fetcher)
         else:
-            raise ValueError('Unknown fetcher: %s' % (fethcer))
+            raise ValueError('Unknown fetcher: %s' % (fetcher))
 
 class Builder(object):
     def __init__(self, name, data, folder):
