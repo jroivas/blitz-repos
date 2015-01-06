@@ -1,0 +1,5 @@
+{
+    "libgit2": {
+        "source": "https://github.com/libgit2/libgit2.git"
+    }
+}
