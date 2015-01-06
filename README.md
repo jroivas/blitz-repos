@@ -90,3 +90,29 @@ To fetch, build and test specific branch of libgit2, this is minimal setup:
 Command to build this is:
 
     ./blitz-repo.py --folder output_folder --all examples/libgit2.json
+
+## Usage
+
+See up to date usage with:
+
+    ./blitz-repo.py --help
+
+
+Output:
+
+    blitz-repo.py [-h] [-f FOLDER] [-i] [-b] [-c] [-t] [-a] config
+
+    Blitz repos
+
+    positional arguments:
+      config                Config file as JSON
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -f FOLDER, --folder FOLDER
+                            Output folder
+      -i, --init            Initialize only, download sources
+      -b, --build           Build sources
+      -c, --configure       Build sources
+      -t, --test            Run tests
+      -a, --all             Perform all actions
