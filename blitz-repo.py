@@ -95,15 +95,54 @@ class Builder(object):
         self.name = name
         self.data = data
         self.folder = folder
+        self.build_dir = folder
         self.data = data
+        self._build = data.get('build', '')
+        self._configure = data.get('configure', '')
+
+    def configure_cmake(self):
+        # FIXME
+        self.build_dir = self.folder + '/build'
+        check_dir(self.build_dir)
+        os.system('cd "%s" && cmake "%s"' % (self.build_dir, self.folder))
+
+    def build_make(self):
+        os.system('cd "%s" && make' % (self.build_dir))
+
+    def configure(self):
+        print ('*** Configuring %s' % (self.name))
+        if self._configure == '' and self._build == 'cmake':
+            self._configure = 'cmake'
+            self._build = 'make'
+
+        if self._configure == '':
+            return
+        elif self._configure == 'cmake':
+            self.configure_cmake()
+        elif type(self._configure) == list:
+            for conf in self._configure:
+                os.system('cd "%s" && %s' % (self.folder, conf))
+        else:
+            os.system('cd "%s" && %s' % (self.folder, self._configure))
 
     def build(self):
         print ('*** Building %s' % (self.name))
+        if type(self._build) == list:
+            raise ValueError('Build commands not supported')
+        elif self._build == '':
+            pass
+        elif self._build == 'cmake':
+            self.build_make()
+        elif self._build == 'make':
+            self.build_make()
+        else:
+            raise ValueError('Unknown build system: %s' % (self.data))
 
 def handle_project(name, data, dir_name):
     fetcher = DataFetcher(name, data, dir_name)
     fetcher.fetch()
     builder = Builder(name, data, dir_name)
+    builder.configure()
     builder.build()
 
 def init_project(name, proj, build_dir):
