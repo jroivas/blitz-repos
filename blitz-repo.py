@@ -20,6 +20,11 @@ def check_dir(dir_name):
         return
     os.makedirs(dir_name)
 
+def replace_entries(line, items):
+    for item in items:
+        if type(items[item]) == str or type(items[item]) == unicode:
+            line = line.replace('%%%s%%' % (item), items[item])
+    return line
 
 class DataFetcher(object):
     def __init__(self, name, data, folder):
@@ -46,17 +51,14 @@ class DataFetcher(object):
 
         return res
 
-    def replace_source(self, source):
-        for item in self.data:
-            if type(self.data[item]) == str or type(self.data[item]) == unicode:
-                source = source.replace('%%%s%%' % (item), self.data[item])
-        return source
-
     def fetch_git(self, fetcher, source):
-        source = self.replace_source(source)
-        print (source)
+        source = replace_entries(source, self.data)
+        update = False
         if os.path.isdir(self.folder + '/.git'):
+            if fetcher['branch']:
+                os.system('cd "%s" && git checkout "%s"' % (self.folder, fetcher['branch']))
             os.system('cd "%s" && git pull' % (self.folder))
+            update = True
         else:
             res = -1
             tries = 3
@@ -66,7 +68,7 @@ class DataFetcher(object):
                     shutil.rmtree(self.folder, ignore_errors=True)
                 tries -= 1
 
-        if os.path.isdir(self.folder): 
+        if not update and os.path.isdir(self.folder):
             if fetcher['branch']:
                 os.system('cd "%s" && git checkout -b "%s" "%s"' % (self.folder, os.path.basename(fetcher['branch']), fetcher['branch']))
             if fetcher['commit']:
@@ -82,7 +84,7 @@ class DataFetcher(object):
     def unpack_source(self, source, folder, strip=0):
         if type(self.unpack) == list:
             for cmd in self.unpack:
-                cmd = self.replace_source(cmd)
+                cmd = replace_entries(cmd, self.data)
                 os.system('cd "%s" && "%s"' % (folder, cmd))
         elif self.unpack == '':
             #detect
@@ -93,7 +95,7 @@ class DataFetcher(object):
                 if '.tar' in srcfile or '.tgz' in srcfile:
                     self.unpack_untar(srcfile, folder, strip=strip)
         else:
-            cmd = self.replace_source(self.unpack)
+            cmd = replace_entries(self.unpack, self.data)
             os.system('cd "%s" && "%s"' % (folder, cmd))
 
     def fetch_get(self, fetcher, source):
@@ -103,12 +105,12 @@ class DataFetcher(object):
         # FIXME Utilize python
         if type(source) == list:
             for src in source:
-                src = self.replace_source(src)
+                src = replace_entries(src, self.data)
                 os.system('cd "%s" && wget -c %s' % (self.folder, src))
                 self.unpack_source(src, self.folder, strip)
                 strip = 0
         else:
-            src =self.replace_source(source)
+            src = replace_entries(source, self.data)
             os.system('cd "%s" && wget -c %s' % (self.folder, src))
             self.unpack_source(src, self.folder, strip)
 
@@ -139,17 +141,25 @@ class Builder(object):
         self.data = data
         self._build = data.get('build', '')
         self._configure = data.get('configure', '')
+        self._test = data.get('test', '')
 
-    def configure_cmake(self):
+    def configure_cmake(self, real_run):
         # FIXME
         self.build_dir = self.folder + '/build'
         check_dir(self.build_dir)
-        os.system('cd "%s" && cmake "%s"' % (self.build_dir, self.folder))
+        if real_run:
+            self.execute_list(['cmake %s' % (self.folder)], self.build_dir)
 
     def build_make(self):
-        os.system('cd "%s" && make' % (self.build_dir))
+        self.execute_list(['make'], self.build_dir)
 
-    def configure(self):
+    def execute_list(self, cmds, folder):
+        for cmd in cmds:
+            cmd = replace_entries(cmd, self.data)
+            print('cd "%s" && %s' % (folder, cmd))
+            os.system('cd "%s" && %s' % (folder, cmd))
+
+    def configure(self, real_run=True):
         print ('*** Configuring %s' % (self.name))
         if not os.path.isdir(self.folder):
             print('ERROR: Build folder not found, need to initialize?')
@@ -157,17 +167,20 @@ class Builder(object):
 
         if self._configure == '' and self._build == 'cmake':
             self._configure = 'cmake'
-            self._build = 'make'
+            if not self._build:
+                self._build = 'make'
+            if not self._test:
+                self._test = 'make test'
 
         if self._configure == '':
-            return
+            return True
         elif self._configure == 'cmake':
-            self.configure_cmake()
-        elif type(self._configure) == list:
-            for conf in self._configure:
-                os.system('cd "%s" && %s' % (self.folder, conf))
-        else:
-            os.system('cd "%s" && %s' % (self.folder, self._configure))
+            self.configure_cmake(real_run=real_run)
+        elif real_run and type(self._configure) == list:
+            self.execute_list(self._configure, self.folder)
+        elif real_run:
+            self.execute_list([self._configure], self.folder)
+
         return True
 
     def build(self):
@@ -177,8 +190,7 @@ class Builder(object):
             return False
 
         if type(self._build) == list:
-            for cmd in self._build:
-                os.system('cd "%s" && %s' % (self.folder, cmd))
+            self.execute_list(self._build, self.folder)
         elif self._build == '':
             pass
         elif self._build == 'cmake':
@@ -190,6 +202,21 @@ class Builder(object):
 
         return True
 
+    def test(self):
+        print ('*** Testing %s' % (self.name))
+        if not os.path.isdir(self.folder):
+            print('ERROR: Build folder not found, need to initialize?')
+            return False
+
+        if self._test == '':
+            pass
+        elif type(self._test) == list:
+            self.execute_list(self._test, self.build_dir)
+        else:
+            self.execute_list([self._test], self.build_dir)
+
+        return True
+
 def handle_project(name, data, dir_name, args):
     print ('* Project: %s' % name)
     actions = 0
@@ -197,16 +224,24 @@ def handle_project(name, data, dir_name, args):
         fetcher = DataFetcher(name, data, dir_name)
         fetcher.fetch()
         actions += 1
-    if args['all'] or args['build'] or args['configure']:
-        builder = Builder(name, data, dir_name)
-        if args['all'] or args['configure']:
-            if not builder.configure():
-                return False
-            actions += 1
-        if args['all'] or args['build']:
-            if not builder.build():
-                return False
-            actions += 1
+
+    builder = Builder(name, data, dir_name)
+    if args['all'] or args['configure']:
+        if not builder.configure():
+            return False
+        actions += 1
+    else:
+        if not builder.configure(real_run=False):
+            return False
+
+    if args['all'] or args['build']:
+        if not builder.build():
+            return False
+        actions += 1
+    if args['all'] or args['test']:
+        if not builder.test():
+            return False
+        actions += 1
 
     if actions == 0:
         print ('ERROR: No actions defined')
@@ -232,12 +267,13 @@ def init(config, args):
             init_project(item, config[item], build_dir + '/' + item, args)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Blitz repo')
+    parser = argparse.ArgumentParser(description='Blitz repos')
     parser.add_argument('config', type=argparse.FileType('r'), help='Config file as JSON')
     parser.add_argument('-f', '--folder', default='', help='Output folder')
     parser.add_argument('-i', '--init', action='store_true', help='Initialize only, download sources')
     parser.add_argument('-b', '--build', action='store_true', help='Build sources')
     parser.add_argument('-c', '--configure', action='store_true', help='Build sources')
+    parser.add_argument('-t', '--test', action='store_true', help='Run tests')
     parser.add_argument('-a', '--all', action='store_true', help='Perform all actions')
 
     res = parser.parse_args()

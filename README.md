@@ -80,6 +80,6 @@ In order to fetch and build libgit2, this is minimal setup:
         }
     }
 
-And command is:
+Command to build this is:
 
     ./blitz-repo.py --folder output_folder --all examples/libgit2.json
