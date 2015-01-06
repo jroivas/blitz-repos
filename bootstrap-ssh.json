@@ -1,0 +1,5 @@
+{
+    "python-sshserver": {
+        "source": "https://github.com/jroivas/python-sshserver.git"
+    }
+}

@@ -116,3 +116,45 @@ Output:
       -c, --configure       Build sources
       -t, --test            Run tests
       -a, --all             Perform all actions
+
+
+## SSH Server
+
+Blitz-repo can serve files over SSH. To enable SSH server first run ./bootstrap-ssh.sh
+It will use blitz-repo itself to bootstrap required SSH server libraries.
+
+After that one can start serving files thorough SSH just like:
+
+    ./blitz-repo.py --folder output_folder --init examples/libgit2_minimal.json --serve --serve-port=4444
+
+By default all users and clients are allowed as long as they provide their public SSH key.
+To enable list of authorized keys create a file with contents:
+
+    ssh-rsa PUBLIC_KEY user@host
+
+This way "user" will be mapped with PUBLIC_KEY and authorized to access.
+
+SSH provides very simple interface:
+
+    $ ssh -p4444 localhost
+    Blitz-repo
+    > help
+    Commands:
+       EXIT          Close connection
+       HELP          This help
+       LIST [dir]    List directory
+       GET file      Get file contents
+    > list
+    /libgit2
+    > list /libgit2
+    /libgit2/AUTHORS
+    /libgit2/CHANGELOG.md
+    /libgit2/CMakeLists.txt
+    ...
+    > get /libgit2/AUTHORS
+    File: /libgit2/AUTHORS
+    Size: 1241
+    The following people contribute or have contributed
+    ...
+    > exit
+    > Connection to localhost closed.
