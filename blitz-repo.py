@@ -90,25 +90,34 @@ class DataFetcher(object):
         else:
             raise ValueError('Unknown fetcher: %s' % (fethcer))
 
-def handle_project(name, data, dir_name):
+class Builder(object):
+    def __init__(self, name, data, folder):
+        self.name = name
+        self.data = data
+        self.folder = folder
+        self.data = data
 
+    def build(self):
+        print ('*** Building %s' % (self.name))
+
+def handle_project(name, data, dir_name):
     fetcher = DataFetcher(name, data, dir_name)
     fetcher.fetch()
-    print data
+    builder = Builder(name, data, dir_name)
+    builder.build()
 
 def init_project(name, proj, build_dir):
     for item in proj:
-        print ('  Subproject: %s' % item)
-        #check_dir(build_dir + '/' + item)
+        print ('** Subproject: %s' % item)
         handle_project(item, proj[item], build_dir + '/' + item)
 
 def init(config, extra_dir=''):
     build_dir = os.getcwd()
     if extra_dir:
         build_dir = os.path.join(build_dir, extra_dir)
-    print build_dir
+
     for item in config:
-        print ('Initializing: %s' % item)
+        print ('* Initializing: %s' % item)
         check_dir(build_dir + '/' + item)
         if 'source' in config[item]:
             handle_project(item, config[item], build_dir + '/' + item)
