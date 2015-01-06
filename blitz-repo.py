@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-import sys
+import argparse
 import json
 import os
 import shutil
+import sys
 
 def usage(name):
     print ('Usage: %s config.json [build_folder]' % (name))
@@ -150,6 +151,10 @@ class Builder(object):
 
     def configure(self):
         print ('*** Configuring %s' % (self.name))
+        if not os.path.isdir(self.folder):
+            print('ERROR: Build folder not found, need to initialize?')
+            return False
+
         if self._configure == '' and self._build == 'cmake':
             self._configure = 'cmake'
             self._build = 'make'
@@ -163,11 +168,17 @@ class Builder(object):
                 os.system('cd "%s" && %s' % (self.folder, conf))
         else:
             os.system('cd "%s" && %s' % (self.folder, self._configure))
+        return True
 
     def build(self):
         print ('*** Building %s' % (self.name))
+        if not os.path.isdir(self.folder):
+            print('ERROR: Build folder not found, need to initialize?')
+            return False
+
         if type(self._build) == list:
-            raise ValueError('Build commands not supported')
+            for cmd in self._build:
+                os.system('cd "%s" && %s' % (self.folder, cmd))
         elif self._build == '':
             pass
         elif self._build == 'cmake':
@@ -177,39 +188,63 @@ class Builder(object):
         else:
             raise ValueError('Unknown build system: %s' % (self.data))
 
-def handle_project(name, data, dir_name):
-    fetcher = DataFetcher(name, data, dir_name)
-    fetcher.fetch()
-    builder = Builder(name, data, dir_name)
-    builder.configure()
-    builder.build()
+        return True
 
-def init_project(name, proj, build_dir):
+def handle_project(name, data, dir_name, args):
+    print ('* Project: %s' % name)
+    actions = 0
+    if args['all'] or args['init']:
+        fetcher = DataFetcher(name, data, dir_name)
+        fetcher.fetch()
+        actions += 1
+    if args['all'] or args['build'] or args['configure']:
+        builder = Builder(name, data, dir_name)
+        if args['all'] or args['configure']:
+            if not builder.configure():
+                return False
+            actions += 1
+        if args['all'] or args['build']:
+            if not builder.build():
+                return False
+            actions += 1
+
+    if actions == 0:
+        print ('ERROR: No actions defined')
+        return False
+
+    return True
+
+def init_project(name, proj, build_dir, args):
     for item in proj:
-        print ('** Subproject: %s' % item)
-        handle_project(item, proj[item], build_dir + '/' + item)
+        if not handle_project(item, proj[item], build_dir + '/' + item, args):
+            print ('ERROR: Problem while handling %s' % (item))
 
-def init(config, extra_dir=''):
+def init(config, args):
     build_dir = os.getcwd()
-    if extra_dir:
-        build_dir = os.path.join(build_dir, extra_dir)
+    if 'folder' in args:
+        build_dir = os.path.join(build_dir, args['folder'])
 
     for item in config:
-        print ('* Initializing: %s' % item)
-        #check_dir(build_dir + '/' + item)
         if 'source' in config[item]:
-            handle_project(item, config[item], build_dir + '/' + item)
+            if not handle_project(item, config[item], build_dir + '/' + item, args):
+                print ('ERROR: Problem while handling %s' % (item))
         else:
-            init_project(item, config[item], build_dir + '/' + item)
+            init_project(item, config[item], build_dir + '/' + item, args)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        usage(sys.argv[0])
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Blitz repo')
+    parser.add_argument('config', type=argparse.FileType('r'), help='Config file as JSON')
+    parser.add_argument('-f', '--folder', default='', help='Output folder')
+    parser.add_argument('-i', '--init', action='store_true', help='Initialize only, download sources')
+    parser.add_argument('-b', '--build', action='store_true', help='Build sources')
+    parser.add_argument('-c', '--configure', action='store_true', help='Build sources')
+    parser.add_argument('-a', '--all', action='store_true', help='Perform all actions')
 
-    extra = ''
-    if len(sys.argv) >= 3:
-        extra = sys.argv[2]
+    res = parser.parse_args()
 
-    res = parse(sys.argv[1])
-    init(res, extra)
+    args = vars(res)
+
+    config = json.loads(args['config'].read())
+    args['config'].close()
+
+    init(config, args)
