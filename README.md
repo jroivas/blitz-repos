@@ -31,7 +31,7 @@ One can define fetcher method, but by default git is assumed.
 
 You can fetch this project by:
 
-    ./blitz-repos -f output_folder -i examples/libgit2_minimal.json
+    ./blitz-repo.py --folder output_folder --init examples/libgit2_minimal.json
 
 It will fetch it to output_folder/libgit2
 
@@ -65,3 +65,21 @@ All these entries can be string or list of strings.
 Some magic keywords can define other steps as well, such as "cmake".
 In case of "build: "cmake", it will define special configure and build steps
 to fulfill cmake requirements. Test step is also expanded by default.
+All these steps can be executed separately as well.
+
+In order to fetch and build libgit2, this is minimal setup:
+
+    {
+        "libgit2": {
+            "source": "https://github.com/libgit2/libgit2.git",
+            "method": {
+                "backend": "git",
+                "branch": "v0.21.3"
+            },
+            "build": "cmake"
+        }
+    }
+
+And command is:
+
+    ./blitz-repo.py --folder output_folder --all examples/libgit2.json
