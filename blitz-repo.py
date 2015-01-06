@@ -2,6 +2,7 @@
 import sys
 import json
 import os
+import shutil
 
 def usage(name):
     print ('Usage: %s config.json [build_folder]' % (name))
@@ -26,6 +27,7 @@ class DataFetcher(object):
         self.folder = folder
         self.source = data.get('source', '')
         self.method = data.get('method', '')
+        self.unpack = data.get('unpack', '')
 
     def parse_method(self):
         res = {
@@ -51,10 +53,17 @@ class DataFetcher(object):
 
     def fetch_git(self, fetcher, source):
         source = self.replace_source(source)
-        if os.path.isdir(self.folder):
+        print (source)
+        if os.path.isdir(self.folder + '/.git'):
             os.system('cd "%s" && git pull' % (self.folder))
         else:
-            os.system('git clone "%s" "%s"' % (source, self.folder))
+            res = -1
+            tries = 3
+            while res != 0 and tries > 0:
+                res = os.system('git clone "%s" "%s"' % (source, self.folder))
+                if res != 0 and os.path.isdir(self.folder):
+                    shutil.rmtree(self.folder, ignore_errors=True)
+                tries -= 1
 
         if os.path.isdir(self.folder): 
             if fetcher['branch']:
@@ -62,15 +71,45 @@ class DataFetcher(object):
             if fetcher['commit']:
                 os.system('cd "%s" && git checkout "%s"' % (self.folder, fetcher['commit']))
 
+    def unpack_untar(self, srcfile, folder, strip=0):
+        extra = ''
+        if strip > 0:
+            extra =' --strip-components=%s' % (strip)
+        print ("** Untarring...")
+        os.system('cd "%s" && tar xf "%s"%s ' % (folder, srcfile, extra))
+
+    def unpack_source(self, source, folder, strip=0):
+        if type(self.unpack) == list:
+            for cmd in self.unpack:
+                cmd = self.replace_source(cmd)
+                os.system('cd "%s" && "%s"' % (folder, cmd))
+        elif self.unpack == '':
+            #detect
+            name = os.path.basename(source)
+            srcfile = folder + '/' + name
+            if os.path.isfile(srcfile):
+                print ("*** Unpack %s" % (srcfile))
+                if '.tar' in srcfile or '.tgz' in srcfile:
+                    self.unpack_untar(srcfile, folder, strip=strip)
+        else:
+            cmd = self.replace_source(self.unpack)
+            os.system('cd "%s" && "%s"' % (folder, cmd))
+
     def fetch_get(self, fetcher, source):
         check_dir(self.folder)
 
+        strip = 1
         # FIXME Utilize python
         if type(source) == list:
             for src in source:
-                os.system('cd "%s" && wget -c %s' % (self.folder, self.replace_source(src)))
+                src = self.replace_source(src)
+                os.system('cd "%s" && wget -c %s' % (self.folder, src))
+                self.unpack_source(src, self.folder, strip)
+                strip = 0
         else:
-            os.system('cd "%s" && wget -c %s' % (self.folder, self.replace_source(source)))
+            src =self.replace_source(source)
+            os.system('cd "%s" && wget -c %s' % (self.folder, src))
+            self.unpack_source(src, self.folder, strip)
 
     def fetch_commands(self, fetcher):
         check_dir(self.folder)
@@ -157,7 +196,7 @@ def init(config, extra_dir=''):
 
     for item in config:
         print ('* Initializing: %s' % item)
-        check_dir(build_dir + '/' + item)
+        #check_dir(build_dir + '/' + item)
         if 'source' in config[item]:
             handle_project(item, config[item], build_dir + '/' + item)
         else:

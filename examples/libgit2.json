@@ -1,0 +1,10 @@
+{
+    "libgit2": {
+        "source": "https://github.com/libgit2/libgit2.git",
+        "method": {
+            "backend": "git",
+            "branch": "v0.21.3"
+        },
+        "build": "cmake"
+    }
+}

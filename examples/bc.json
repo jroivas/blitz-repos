@@ -1,0 +1,14 @@
+{
+    "bc": {
+        "version": "1.06.95",
+        "deb_version": "-8ubuntu1",
+        "source": [
+            "http://archive.ubuntu.com/ubuntu/pool/main/b/bc/bc_%version%.orig.tar.gz",
+            "http://archive.ubuntu.com/ubuntu/pool/main/b/bc/bc_%version%%deb_version%.debian.tar.gz"
+        ],
+        "method": "get",
+        "configure": "./configure",
+        "build": "make",
+        "install": "make install DESTDIR=/tmp"
+    }
+}
