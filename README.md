@@ -1,6 +1,6 @@
 # Blitz-repos
 
-More than a repositories. Blitz-repos is handler for multiple repositories.
+More than repositories. Blitz-repos is handler for multiple repositories.
 It can fetch and unpack multiple different repositories.
 
 Main purpose is to be repository handler for bigger projects.

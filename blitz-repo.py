@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import sys
+import stat
 
 
 def parse(config_file):
@@ -343,6 +344,28 @@ def serve(config, args):
                 for chunk in iter(lambda: fd.read(blocksize), ''):
                     self._channel.send(chunk)
 
+        def stat_entry(self, fname):
+            base = fname[len(self.build_dir):]
+            data = os.stat(fname)
+
+            typestr = 'ERR'
+            if stat.S_ISDIR(data.st_mode):
+                typestr = 'DIR'
+            elif stat.S_ISLNK(data.st_mode):
+                typestr = 'LINK'
+            elif stat.S_ISREG(data.st_mode):
+                typestr = 'FILE'
+            elif stat.S_ISCHR(data.st_mode):
+                typestr = 'CHAR'
+            elif stat.S_ISBLK(data.st_mode):
+                typestr = 'BLOCK'
+            elif stat.S_ISFIFO(data.st_mode):
+                typestr = 'FIFO'
+            elif stat.S_ISSOCK(data.st_mode):
+                typestr = 'SOCK'
+
+            self.send('%s %s %s' % (typestr, data.st_size, base))
+
         def get(self, fname):
             for f in fname:
                 sf = self.sanitize(f)
@@ -352,6 +375,18 @@ def serve(config, args):
 
                 self.send_file(sf)
 
+        def stat(self, fname):
+            for f in fname:
+                sf = self.sanitize(f)
+                if sf is None or not os.path.exists(sf):
+                    self.send('ERROR: Invalid entry: %s' % (f))
+                    return
+
+                self.stat_entry(sf)
+
+        def ok(self):
+            self.send('OK')
+
         def commands(self, cmd):
             parts = cmd.split(' ')
             if not parts:
@@ -360,12 +395,19 @@ def serve(config, args):
             if parts[0].lower() == '':
                 return
             elif parts[0].lower() == 'list':
+                self.ok()
                 self.list(parts[1:])
             elif parts[0].lower() == 'get':
+                self.ok()
                 self.get(parts[1:])
+            elif parts[0].lower() == 'stat':
+                self.ok()
+                self.stat(parts[1:])
             elif parts[0].lower() == 'exit':
+                self.ok()
                 self.running = False
             elif parts[0].lower() == 'help':
+                self.ok()
                 self.send('Commands:')
                 self.send('   EXIT          Close connection')
                 self.send('   HELP          This help')
@@ -385,6 +427,9 @@ def serve(config, args):
             data = ''
             while self.running:
                 tmp = fd.read(1)
+                if not tmp:
+                    self.running = False
+                    break
                 if ord(tmp) == 4:
                     self.running = False
                 elif ord(tmp) == 127:  # Special backspace
