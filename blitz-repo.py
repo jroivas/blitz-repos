@@ -4,11 +4,13 @@ import build
 import fetcher
 import os
 import sys
+import threading
+import time
 import utils
 
 
 def handle_project(name, data, dir_name, args):
-    print ('* Project: %s' % name)
+    utils.print_verb('* Project: %s' % name)
     actions = 0
     if args['all'] or args['init']:
         fetch = fetcher.DataFetcher(name, data, dir_name)
@@ -39,6 +41,7 @@ def handle_project(name, data, dir_name, args):
 
     return True
 
+
 def init_project(name, proj, build_dir, args):
     res = True
     for item in proj:
@@ -47,6 +50,7 @@ def init_project(name, proj, build_dir, args):
             res = False
 
     return res
+
 
 def init(config, args):
     build_dir = utils.solve_folder(args)
@@ -64,6 +68,15 @@ def init(config, args):
 
     return res
 
+
+def updater(config, args):
+    while True:
+        time.sleep(args['interval'])
+        try:
+            init(config, args)
+        except:
+            time.sleep(1)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Blitz repos')
     parser.add_argument('config', type=argparse.FileType('r'), help='Config file as JSON')
@@ -72,6 +85,8 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--build', action='store_true', help='Build sources')
     parser.add_argument('-c', '--configure', action='store_true', help='Build sources')
     parser.add_argument('-t', '--test', action='store_true', help='Run tests')
+    parser.add_argument('--interval', type=float, default=1.0, help='Interval in seconds between updates')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose')
     parser.add_argument('-a', '--all', action='store_true', help='Perform all actions')
 
     basedir = os.path.dirname(os.path.realpath(__file__))
@@ -88,9 +103,14 @@ if __name__ == '__main__':
     config = utils.parse(args['config'])
     args['config'].close()
 
+    utils.set_print_verb(args['verbose'])
+
     if not init(config, args):
         sys.exit(1)
 
     if 'serve' in args and args['serve']:
         import serve
+        upd = threading.Thread(target=updater, args=(config, args))
+        upd.start()
+
         serve.serve(config, args)

@@ -3,6 +3,7 @@ import sshserver
 import stat
 import utils
 
+
 class RepoServer(sshserver.SSHServer):
     def check_auth_publickey(self, username, key):
         if not self.key_handler.auth_file:
@@ -13,9 +14,10 @@ class RepoServer(sshserver.SSHServer):
 
         return super(RepoServer, self).check_auth_publickey(username, key)
 
+
 class RepoHandler(sshserver.SSHThread):
     def __init__(self, conn, key_handler, master):
-        super(RepoHandler, self).__init__( conn, key_handler, master)
+        super(RepoHandler, self).__init__(conn, key_handler, master)
         self.server_class = RepoServer
         self.args = master.args
         self.build_dir = os.path.realpath(utils.solve_folder(self.args))
@@ -24,7 +26,6 @@ class RepoHandler(sshserver.SSHThread):
         return not ('..' in path or not path.startswith(self.build_dir) or not os.path.exists(path))
 
     def sanitize(self, _path):
-        res = ''
         path = os.path.realpath(_path)
         if not self._validate_path(path):
             path2 = os.path.realpath(self.build_dir + '/' + path)
@@ -165,6 +166,7 @@ class RepoHandler(sshserver.SSHThread):
             else:
                 data += tmp
                 self._channel.send(tmp)
+
 
 def serve(config, args):
     key_handler = sshserver.SSHKeyHandler(auth_file=args['serve_auth'], host_key='~/.ssh/id_rsa')

@@ -2,6 +2,7 @@ import os
 import shutil
 import utils
 
+
 class DataFetcher(object):
     def __init__(self, name, data, folder):
         self.name = name
@@ -53,8 +54,8 @@ class DataFetcher(object):
     def unpack_untar(self, srcfile, folder, strip=0):
         extra = ''
         if strip > 0:
-            extra =' --strip-components=%s' % (strip)
-        print ("** Untarring...")
+            extra = ' --strip-components=%s' % (strip)
+        utils.print_verb("** Untarring...")
         os.system('cd "%s" && tar xf "%s"%s ' % (folder, srcfile, extra))
 
     def unpack_source(self, source, folder, strip=0):
@@ -63,11 +64,11 @@ class DataFetcher(object):
                 cmd = utils.replace_entries(cmd, self.data)
                 os.system('cd "%s" && "%s"' % (folder, cmd))
         elif self.unpack == '':
-            #detect
+            # detect
             name = os.path.basename(source)
             srcfile = folder + '/' + name
             if os.path.isfile(srcfile):
-                print ("*** Unpack %s" % (srcfile))
+                utils.print_verb("*** Unpack %s" % (srcfile))
                 if '.tar' in srcfile or '.tgz' in srcfile:
                     self.unpack_untar(srcfile, folder, strip=strip)
         else:
@@ -96,7 +97,7 @@ class DataFetcher(object):
             os.system('cd "%s" && %s' % (self.folder, cmd))
 
     def fetch(self):
-        print ('*** Fetching %s' % (self.name))
+        utils.print_verb('*** Fetching %s' % (self.name))
 
         fetcher = self.parse_method()
         if fetcher['backend'] == 'git' or fetcher['backend'] == '':
@@ -107,4 +108,3 @@ class DataFetcher(object):
             self.fetch_commands(fetcher)
         else:
             raise ValueError('Unknown fetcher: %s' % (fetcher))
-

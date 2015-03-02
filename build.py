@@ -1,6 +1,7 @@
 import os
 import utils
 
+
 class Builder(object):
     def __init__(self, name, data, folder):
         self.name = name
@@ -25,11 +26,11 @@ class Builder(object):
     def execute_list(self, cmds, folder):
         for cmd in cmds:
             cmd = utils.replace_entries(cmd, self.data)
-            print('cd "%s" && %s' % (folder, cmd))
+            utils.print_verb('cd "%s" && %s' % (folder, cmd))
             os.system('cd "%s" && %s' % (folder, cmd))
 
     def configure(self, real_run=True):
-        print ('*** Configuring %s' % (self.name))
+        utils.print_verb('*** Configuring %s' % (self.name))
         if not os.path.isdir(self.folder):
             print('ERROR: Build folder not found, need to initialize?')
             return False
@@ -53,7 +54,7 @@ class Builder(object):
         return True
 
     def build(self):
-        print ('*** Building %s' % (self.name))
+        utils.print_verb('*** Building %s' % (self.name))
         if not os.path.isdir(self.folder):
             print('ERROR: Build folder not found, need to initialize?')
             return False
@@ -72,7 +73,7 @@ class Builder(object):
         return True
 
     def test(self):
-        print ('*** Testing %s' % (self.name))
+        utils.print_verb('*** Testing %s' % (self.name))
         if not os.path.isdir(self.folder):
             print('ERROR: Build folder not found, need to initialize?')
             return False
