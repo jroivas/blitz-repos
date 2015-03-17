@@ -1,0 +1,16 @@
+{
+    "sources": ["hello.c", "sw_test.cpp", "sw_test.h"],
+    "cflags": "-Wall -Werror",
+    "cxxflags": "$cflags -pedantic -std=c++11",
+    "pkg-config": ["Qt5Core"],
+    "target": [
+        {
+            "name": "ninja_example",
+            "link": "objects",
+            "input": ["hello.o", "sw_test.o"],
+            "libs": ["boost_random"],
+            "pkg-config": ["cairo"],
+            "libdirs": ["/usr/lib"]
+        }
+    ]
+}

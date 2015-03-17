@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import subprocess
 import sys
 import utils
 
@@ -11,7 +12,7 @@ c_compile = {
             "output": ".o",
             "depfile": ".d",
             "deps": "gcc",
-            "command": "gcc -c -o $out $in $cflags -MMD -MT $out -MF $depfile $includes"
+            "command": "gcc -c -fPIC -o $out $in $cflags -MMD -MT $out -MF $depfile $includes"
         },
     ".cpp":
         {
@@ -19,13 +20,15 @@ c_compile = {
             "output": ".o",
             "depfile": ".d",
             "deps": "gcc",
-            "command": "g++ -c -o $out $in $cxxflags -MMD -MT $out -MF $depfile $includes"
+            "command": "g++ -c -fPIC -o $out $in $cxxflags -MMD -MT $out -MF $depfile $includes"
         }
     }
 
 c_link = {
     "objects": {
         "input": "objects",
+        "libprefix": "-l",
+        "libdirprefix": "-L",
         "command": "g++ -o $out $in $libs"
     }
 }
@@ -61,6 +64,9 @@ def parse_link(data):
 
     return res
 
+def parse_pkgconfig(data):
+    return data.get('pkg-config', [])
+
 def parse_target(data):
     return data.get('target', [])
 
@@ -85,6 +91,8 @@ def parse_variables(data):
         if item == 'sources':
             continue
         if item == 'target':
+            continue
+        if item == 'pkg-config':
             continue
         res.append('%s = %s' % (item, data[item]))
 
@@ -157,6 +165,46 @@ def gen_builds(rules, files, folder, skips):
 
     return res
 
+def libstring(links, linktype, libdata):
+    libs = ''
+    libprefix = ''
+    if 'libprefix' in links[linktype]:
+        libprefix = links[linktype]['libprefix']
+    for l in libdata:
+        libs += libprefix + l
+
+    return libs
+
+def libpaths(links, linktype, libdata):
+    libs = ''
+    libdataprefix = ''
+    if 'libdirprefix' in links[linktype]:
+        libdataprefix = links[linktype]['libdirprefix']
+    for l in libdata:
+        libs += libdataprefix + l
+
+    return libs
+
+def solve_pkgconfig(items):
+    libs = ''
+    flags = ''
+    for item in items:
+        p = subprocess.Popen(['pkg-config', '--libs', item], stdout=subprocess.PIPE)
+        res,err = p.communicate()
+        if res:
+            if libs:
+                libs += ' '
+            libs += res.strip()
+
+        p = subprocess.Popen(['pkg-config', '--cflags', item], stdout=subprocess.PIPE)
+        res,err = p.communicate()
+        if res:
+            if flags:
+                flags += ' '
+            flags += res.strip()
+
+    return (libs, flags)
+
 def gen_targets(links, targets):
     res = ''
     for t in targets:
@@ -166,11 +214,25 @@ def gen_targets(links, targets):
             raise ValueError('Invalid target: %s, missing input' % (t))
         if 'link' not in t:
             t['link'] = 'objects'
-            #raise ValueError('Invalid target: %s, missing link' % (t))
+
+        libs = ''
+        flags = ''
+        pkg_cfg = parse_pkgconfig(t)
+        if pkg_cfg:
+            (libs, flags) = solve_pkgconfig(pkg_cfg)
+        if 'libdirs' in t:
+            libs += ' ' + libpaths(links, t['link'], t['libdirs'])
+        if 'libs' in t:
+            libs += ' ' + libstring(links, t['link'], t['libs'])
 
         items = ' '.join(t['input'])
         linkrule = 'link' + t['link']
         res += 'build %s: %s %s\n' % (t['name'], linkrule, items)
+        if libs:
+            res += '    libs = %s\n' % (libs)
+        if flags:
+            res += '    cflags = %s $cflags\n' % (flags)
+            res += '    cxxflags = %s $cxxflags\n' % (flags)
 
     return res
 
@@ -179,11 +241,18 @@ def gen_ninja(data):
     skips = parse_skip(data)
     rules = parse_compile(data)
     links = parse_link(data)
+    pkg_cfg = parse_pkgconfig(data)
 
     ninja = ''
     ninja += 'includes = -I%s\n' % (folder)
     ninja += '\n'.join(parse_variables(data))
     ninja += '\n\n'
+    (libs, flags) = solve_pkgconfig(pkg_cfg)
+    ninja += 'libs = $libs %s\n' % (libs)
+    ninja += 'cflags = $cflags %s\n' % (flags)
+    ninja += 'cxxflags = $cxxflags %s\n' % (flags)
+    ninja += '\n'
+
 
     ninja += gen_rules(rules, 'compile')
     ninja += gen_rules(links, 'link')

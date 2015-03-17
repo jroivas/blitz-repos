@@ -1,0 +1,38 @@
+{
+    "sources": ["hello.c", "sw_test.cpp", "sw_test.h"],
+    "cflags": "-Wall -Werror",
+    "cxxflags": "$cflags -pedantic -std=c++11",
+    "pkg-config": ["Qt5Core"],
+    "compile": [
+        {
+            "input": ".c",
+            "output": ".o",
+            "depfile": ".d",
+            "deps": "gcc",
+            "command": "gcc -c -fPIC -o $out $in $cflags -MMD -MT $out -MF $depfile $includes"
+        },
+        {
+            "input": ".cpp",
+            "output": ".o",
+            "depfile": ".d",
+            "deps": "gcc",
+            "command": "g++ -c -fPIC -o $out $in $cxxflags -MMD -MT $out -MF $depfile $includes"
+        }
+    ],
+    "skip": [".h"],
+    "link": [
+        {
+            "name": "objects",
+            "libprefix": "-l",
+            "command": "g++ -o $out $in $libs"
+        }
+    ],
+    "target": [
+        {
+            "name": "example",
+            "link": "objects",
+            "libs": ["boost_random"],
+            "input": ["hello.o", "sw_test.o"]
+        }
+    ]
+}
