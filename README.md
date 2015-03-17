@@ -195,9 +195,10 @@ Minimal JSON build file for it:
         "sources": ["hello.c"],
         "target": [
             {
-                "name": "hello",
-                "input": ["hello.o"]
+                "name": "hello"
             }
         ]
     }
 
+Main principle is to solve automatically as much as possible.
+However give power to user and allow to override rules, or define custom ones.

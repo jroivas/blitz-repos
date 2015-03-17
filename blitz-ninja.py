@@ -133,6 +133,7 @@ def gen_rules(items, prefix):
 
 def gen_builds(rules, files, folder, skips):
     res = ''
+    outputs = []
     for f in files:
         ok = True
         for s in skips:
@@ -148,12 +149,13 @@ def gen_builds(rules, files, folder, skips):
         if ext not in rules:
             raise ValueError('No rule to build: %s' % (f))
 
-        res += 'build %s%s: %s %s\n' % (
-            base,
-            rules[ext]['output'],
+        output = '%s%s' % (base, rules[ext]['output'])
+        res += 'build %s: %s %s\n' % (
+            output,
             rules[ext]['rule'],
             os.path.join(folder, f)
             )
+        outputs.append(output)
         if 'deps' in rules[ext]:
             res += '    deps  = %s\n' % (rules[ext]['deps'])
         if 'depfile' in rules[ext]:
@@ -163,7 +165,7 @@ def gen_builds(rules, files, folder, skips):
                 )
         res += '\n'
 
-    return res
+    return (res, outputs)
 
 def libstring(links, linktype, libdata):
     libs = ''
@@ -205,13 +207,11 @@ def solve_pkgconfig(items):
 
     return (libs, flags)
 
-def gen_targets(links, targets):
+def gen_targets(links, targets, inputs):
     res = ''
     for t in targets:
         if 'name' not in t:
             raise ValueError('Invalid target: %s, missing name' % (t))
-        if 'input' not in t:
-            raise ValueError('Invalid target: %s, missing input' % (t))
         if 'link' not in t:
             t['link'] = 'objects'
 
@@ -225,7 +225,10 @@ def gen_targets(links, targets):
         if 'libs' in t:
             libs += ' ' + libstring(links, t['link'], t['libs'])
 
-        items = ' '.join(t['input'])
+        if 'input' in t:
+            inputs = t['input']
+
+        items = ' '.join(inputs)
         linkrule = 'link' + t['link']
         res += 'build %s: %s %s\n' % (t['name'], linkrule, items)
         if libs:
@@ -257,9 +260,10 @@ def gen_ninja(data):
     ninja += gen_rules(rules, 'compile')
     ninja += gen_rules(links, 'link')
 
-    ninja += gen_builds(rules, parse_files(data), folder, skips)
+    (tmp, outputs) = gen_builds(rules, parse_files(data), folder, skips)
+    ninja += tmp
 
-    ninja += gen_targets(links, parse_target(data))
+    ninja += gen_targets(links, parse_target(data), outputs)
 
     return ninja
 
