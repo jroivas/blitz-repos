@@ -7,7 +7,6 @@
         {
             "name": "ninja_example",
             "link": "objects",
-            "input": ["hello.o", "sw_test.o"],
             "libs": ["boost_random"],
             "pkg-config": ["cairo"],
             "libdirs": ["/usr/lib"]
