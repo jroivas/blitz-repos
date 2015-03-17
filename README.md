@@ -158,3 +158,46 @@ SSH provides very simple interface:
     ...
     > exit
     > Connection to localhost closed.
+
+
+# Blitz Ninja
+
+Build software with [ninja build](http://martine.github.io/ninja).
+
+Will generate ninja files which can be used to build app.
+Example run:
+
+    mkdir buildtest
+    cd buildtest
+    ../blitz-ninja.py ../ninja_example/ninja_example.json > build.ninja
+    ninja
+    ./ninja_example
+
+Output of example:
+
+    Got: Hello all: cbQa=fD(
+
+
+## JSON build file
+
+Blitz utilizes simple JSON build files. They are parsed and transformed into ninja files.
+For example traditional Hello World:
+
+    #include <stdio.h>
+
+    int main() {
+        printf("Hello world\n");
+    }
+
+Minimal JSON build file for it:
+
+    {
+        "sources": ["hello.c"],
+        "target": [
+            {
+                "name": "hello",
+                "input": ["hello.o"]
+            }
+        ]
+    }
+

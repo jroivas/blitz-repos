@@ -1,0 +1,9 @@
+{
+    "sources": ["hello.c"],
+    "target": [
+        {
+            "name": "hello",
+            "input": ["hello.o"]
+        }
+    ]
+}

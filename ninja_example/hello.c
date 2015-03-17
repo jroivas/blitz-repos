@@ -4,6 +4,6 @@
 
 int main()
 {
-    printf("Daa: %s\n", sw());
+    printf("Got: %s\n", sw());
     return 0;
 }
